@@ -1,0 +1,352 @@
+#Program to import DHIS 2 Data from the web
+# You have to imput the web path, username, password, start and end dates, and 
+#location to save
+
+
+
+#
+library(httr)
+library(rjson)
+library(tidyverse)
+library(data.table)
+library(readxl)
+library(readr)
+
+
+
+
+
+dhistrial <- function(webpath, username, password, country, startdate,enddate, savedata) {
+  
+  base.url<- webpath
+  
+  #Edit the organization units as per the instance
+  orgunit <- case_when(country == "Pakistan" ~ "ObBEdXvMN7X",
+                       country == "Malawi" ~ "TyoXRBeZ12K",
+                       country == "Sudan" ~ "q3g2mqKUtIX",
+                       TRUE ~ ""
+  )
+  
+  
+  login <- function(username,password,base.url) {
+    url<-paste0(base.url,"api/me")
+    r<-GET(url,authenticate(username,password))
+    if(r$status == 200L) { print("Logged in successfully!")} 
+    else {print("Could not login")}
+  }
+  login(username,password,base.url)
+  
+  
+  
+  #Datasets
+  
+  getDataSets <- function(base.url) {
+    url<-paste0(base.url,
+                "api/dataSets?fields=id,name&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame, r$dataSet)
+  }
+  
+  data_sets <- getDataSets(base.url) %>%
+    arrange(name)
+  
+  #View(data_sets)
+  
+  write_csv(data_sets,
+            "C:/Data/R publish/datasets.csv")
+  
+  
+  #Dataelements
+  
+  getDataElements <- function(base.url) {
+    url<-paste0(base.url,"api/dataElements?fields=id,name,shortName&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$dataElements)
+  }
+  
+  data_elements<-getDataElements(base.url)
+  
+  View(data_elements)
+  
+  write_csv(data_elements,
+            "C:/Data/R publish/dataelements.csv")
+  
+  w2a_getDataElements <- function(base.url) {
+    url<-paste0(base.url,"api/dataElements?filter=dataSetElements.dataSet.id:in:[UgT5ztVkVTF,Yx34k4jax61,lD91HdCAszZ]&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$dataElements)
+  }
+  
+  w2a_data_elements<- w2a_getDataElements(base.url)
+  
+  #View(data_elements)
+  
+  write_csv(w2a_data_elements,
+            "C:/Data/R publish/w2a_dataelements.csv")
+  
+  getcatOptions <- function(base.url) {
+    url<-paste0(base.url,
+                "api/categoryOptions?fields=id,name,shortName&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$categoryOptions)
+  }
+  
+  cat_options <-getcatOptions(base.url)
+  
+  #View(cat_options)
+  
+  write_csv(cat_options,
+            "C:/Data/R publish/cat_options.csv")
+  
+  getcatOptionCombos <- function(base.url) {
+    url<-paste0(base.url,
+                "api/categoryOptionCombos?fields=id,name,shortName&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$categoryOptionCombo)
+  }
+  
+  cat_option_combos<-getcatOptionCombos(base.url)
+  
+  #View(cat_option_combos)
+  
+  write_csv(cat_option_combos,
+            "C:/Data/R publish/catoptcombos.csv")
+  
+  getOrgUnits <- function(base.url) {
+    url<-paste0(base.url,
+                "api/organisationUnits?fields=id,name&paging=false&includeDescendants=true")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$organisationUnit)
+  }
+  
+  OrgUnits<- getOrgUnits(base.url)
+  
+  
+  write_csv(OrgUnits,
+            "C:/Data/R publish/OrgUnits.csv")
+  
+  
+  #FP ITEMS
+  items_url <- paste0(
+    "https://data.ippf.org/api/dataValueSets?dataSet=UgT5ztVkVTF","&orgUnit=",orgunit,"&&startDate=",startdate, "&endDate=", enddate,"&children=true" )
+  
+  items_01 <- content(GET(items_url), as = "parsed")
+  
+  items <- rbindlist(items_01$dataValues, fill = TRUE)
+  
+  items <- items %>%
+    mutate(category = "FP Item")
+  
+  View(items)
+  
+  write_csv(items,
+            "C:/Data/R publish/FP_ITEMS.csv")
+  
+  #FP services
+  fpservices_url <- paste0(
+    "https://data.ippf.org/api/dataValueSets?dataSet=Yx34k4jax61","&orgUnit=",orgunit,"&&startDate=",startdate, "&endDate=", enddate,"&children=true" )
+  
+  fpservices_01 <- content(GET(fpservices_url), as = "parsed")
+  
+  fpservices <- rbindlist(fpservices_01$dataValues, fill = TRUE)
+  
+  fpservices <- fpservices %>%
+    mutate(category = "FP Service")
+  
+  View(fpservices)
+  
+  write_csv(fpservices,
+            "C:/Data/R publish/FP_SERVICES.csv")
+  
+  #Abortion services
+  abortionservices_url <- paste0(
+    "https://data.ippf.org/api/dataValueSets?dataSet=lD91HdCAszZ","&orgUnit=",orgunit,"&&startDate=",startdate, "&endDate=", enddate,"&children=true" )
+  
+  abortionservices_01 <- content(GET(abortionservices_url), as = "parsed")
+  
+  abortionservices <- rbindlist(abortionservices_01$dataValues, fill = TRUE)
+  
+  abortionservices <- abortionservices %>%
+    mutate(category = "Abortion Service")
+  
+  View(abortionservices)
+  
+  write_csv(abortionservices,
+            "C:/Data/R publish/ABORTION_SERVICES.csv")
+  
+  clean <- rbind(items
+                 , fpservices 
+                 , abortionservices
+  ) %>%
+    mutate(country = country) 
+  
+  clean <- clean %>% 
+    left_join(OrgUnits, by = c("orgUnit" = "id")) %>%
+    rename(SDP = name)
+  
+  View(clean)
+  
+  clean <- clean %>% 
+    left_join(data_elements, by = c("dataElement" = "id")) %>%
+    select(- shortName) %>%
+    rename(service = name)
+  
+  View(clean)
+  
+  clean <- clean %>% 
+    left_join(cat_option_combos, by = c("categoryOptionCombo" = "id")) %>%
+    select(- shortName) %>%
+    rename(age_gender = name)
+  
+  View(clean)
+  
+  clean <- clean %>% 
+    left_join(cat_option_combos, by = c("attributeOptionCombo" = "id")) %>%
+    select(- shortName) %>%
+    rename(org_channel = name)
+  
+  View(clean)
+  
+  splitted <- clean %>%
+    separate(org_channel, c("MA", "Channel"), sep = ",") %>%
+    separate(age_gender, c("Age", "Gender"), sep = ",") 
+  
+  View(splitted)
+  
+  get_private_ma <- function(base.url) {
+    url<-paste0(base.url,
+                "api/organisationUnitGroups/opxuVzNU4qK?paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$organisationUnit)
+  }
+  
+  private_ma <- get_private_ma(base.url)
+  
+  private_ma <- private_ma %>%
+    mutate(ownership = "Private")
+  
+  get_private_01 <- function(base.url) {
+    url<-paste0(base.url,
+                "api/organisationUnitGroups/c5lnOVNEK09?paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$organisationUnit)
+  }
+  
+  private_01 <- get_private_01(base.url)
+  
+  private_01 <- private_01 %>%
+    mutate(ownership = "Private")
+  
+  get_private_02 <- function(base.url) {
+    url<-paste0(base.url,
+                "api/organisationUnitGroups/PVKIz6g1Ih1?paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$organisationUnit)
+  }
+  
+  private_02 <- get_private_02(base.url)
+  
+  private_02 <- private_02 %>%
+    mutate(ownership = "Private")
+  
+  private <- rbind(private_01, private_02)
+  
+  
+  
+  get_public <- function(base.url) {
+    url<-paste0(base.url,
+                "api/organisationUnitGroups/atc9Hi3s2XK?paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$organisationUnit)
+  }
+  
+  public <- get_public(base.url)
+  
+  public <- public %>%
+    mutate(ownership = "Public")
+  
+  
+  #COMBINE PRIVATE AND PUBLIC
+  
+  ownership <- rbind(private, public)
+  
+  
+  
+  
+  dhis2_data <- splitted %>%
+    left_join(ownership, by = c("orgUnit" = "id")) %>%
+    mutate(month = paste(substr(period, 1,4), substr(period, 5,6), "01", sep = "-" )
+    )
+  
+  
+  dhis2_data$month <- as.Date(dhis2_data$month, origin = "1899-12-30")
+  
+  
+  View(dhis2_data)
+  
+  check_ownership <- dhis2_data %>% 
+    group_by(SDP, ownership) %>%
+    summarise(n = n())
+  
+  View(check_ownership)
+  
+  
+  
+  #Mapping Data elements to excel
+  
+  mapping <- read_excel("C:/Users/fhumwa/OneDrive - International Planned Parenthood Federation/Evidence and Learning/Data Management/Data/MA Dashboard/Datasets/Data02/Item_List.xlsx",
+                        sheet = "Mapping")
+  
+  mapping <- mapping %>%
+    select(id, displayName, excel_name)
+  
+  dhis2_data <- dhis2_data %>%
+    left_join(mapping, by = c("dataElement" = "id"))
+  
+  #DATA READY FOR INTEGRATION
+  
+  country_data <- dhis2_data %>%
+    transmute (MA = MA,
+               Country = country,
+               `Reporting Month` = month,
+               `Reporting quarter` = 
+                 if_else(month < "2020-06-01", "2020Q2",
+                         if_else(month < "2020-09-01", "2020Q3",
+                                 if_else(month < "2020-12-01", "2020Q4",
+                                         if_else(month < "2021-03-01", "2021Q1",        
+                                                 if_else(month < "2021-06-01", "2021Q2",        
+                                                         if_else(month < "2021-09-01", "2021Q3",        
+                                                                 if_else(month < "2021-11-30", "2021Q4", 
+                                                                         ""))))))),
+               Level = "",
+               `Service Delivery Point (facility name)` = SDP,
+               `Lead Facilty (within cluster)` = "",
+               Cluster = "",
+               `Local government area (ward, district, municipality, ect)` = "",
+               `Channel: static, mobile/outreach, community-based distribution (CBD)` = Channel,
+               `Owned or operated by:` = ownership,
+               `If Mobile, please indicate no. of outreach teams` = "",
+               `If CBD, please indicate no. of CBD` = "",
+               `Location type: urban, peri-urban, rural` = "",
+               `Facility Address` = "",
+               `GPS Coordinates (Decimal Degree Format)` = "",
+               `Service/Item Type` = excel_name,
+               Age =
+                 if_else(Age == "0 - 19 yrs", "under 20",
+                         if_else(Age == "20 - 24", "20-24",
+                                 if_else(Age == "25 +", "25 and over","Age unknown"))),
+               `Service/Item Category` = category,
+               Value = value
+    )
+  
+  country_data$Value <- as.numeric(country_data$Value)
+  
+  View(country_data)
+  
+  
+  write_excel_csv(country_data,
+                  paste(savedata, country,"_DHIS2.csv", sep = ""))
+  
+}
+
+dhistrial <- function("webpath", "username", "password", "country", "startdate","enddate", "savedata")
