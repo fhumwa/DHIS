@@ -1,0 +1,146 @@
+#title: Program to import DHIS 2 Data from the web
+# Note: You have to imput the web path, username, password, start and end dates, and 
+# location to save
+
+
+#Libraries
+library(httr)
+library(rjson)
+library(tidyverse)
+library(data.table)
+library(readxl)
+library(readr)
+
+
+
+
+
+dhistrial <- function(webpath, username, password, country, startdate,enddate, savedata) {
+  
+  base.url<- webpath
+  
+  #Change the organisation unit as per  your path
+  orgunit <- case_when(country == "insert country" ~ "insert org unit",
+
+                       TRUE ~ ""
+  )
+  
+  
+  login <- function(username,password,base.url) {
+    url<-paste0(base.url,"api/me")
+    r<-GET(url,authenticate(username,password))
+    if(r$status == 200L) { print("Logged in successfully!")} 
+    else {print("Could not login")}
+  }
+  login(username,password,base.url)
+  
+  
+  
+  #Datasets
+  
+  getDataSets <- function(base.url) {
+    url<-paste0(base.url,
+                "api/dataSets?fields=id,name&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame, r$dataSet)
+  }
+  
+  data_sets <- getDataSets(base.url) %>%
+    arrange(name)
+  
+  #View(data_sets)
+  
+  write_csv(data_sets,
+            paste0(savedata, "/datasets.csv"))
+  
+  
+  #Dataelements
+  
+  getDataElements <- function(base.url) {
+    url<-paste0(base.url,"api/dataElements?fields=id,name,shortName&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$dataElements)
+  }
+  
+  data_elements<-getDataElements(base.url)
+  
+  View(data_elements)
+  
+  write_csv(data_elements,
+            paste0(savedata, "/dataelements.csv"))
+  
+  w2a_getDataElements <- function(base.url) {
+    url<-paste0(base.url,"api/dataElements?filter=dataSetElements.dataSet.id:in:[UgT5ztVkVTF,Yx34k4jax61,lD91HdCAszZ]&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$dataElements)
+  }
+  
+  w2a_data_elements<- w2a_getDataElements(base.url)
+  
+  #View(data_elements)
+  
+  write_csv(w2a_data_elements,
+            paste0(savedata, "/w2a_dataelements.csv"))
+  
+  getcatOptions <- function(base.url) {
+    url<-paste0(base.url,
+                "api/categoryOptions?fields=id,name,shortName&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$categoryOptions)
+  }
+  
+  cat_options <-getcatOptions(base.url)
+  
+  #View(cat_options)
+  
+  write_csv(cat_options,
+            paste0(savedata, "/cat_options.csv"))
+  
+  getcatOptionCombos <- function(base.url) {
+    url<-paste0(base.url,
+                "api/categoryOptionCombos?fields=id,name,shortName&paging=false")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$categoryOptionCombo)
+  }
+  
+  cat_option_combos<-getcatOptionCombos(base.url)
+  
+  #View(cat_option_combos)
+  
+  write_csv(cat_option_combos,
+            paste0(savedata, "/catoptcombos.csv"))
+  
+  getOrgUnits <- function(base.url) {
+    url<-paste0(base.url,
+                "api/organisationUnits?fields=id,name&paging=false&includeDescendants=true")
+    r<-content(GET(url,authenticate(username,password)),as="parsed")
+    do.call(rbind.data.frame,r$organisationUnit)
+  }
+  
+  OrgUnits<- getOrgUnits(base.url)
+  
+  
+  write_csv(OrgUnits,
+            paste0(savedata, "/OrgUnits.csv"))
+  
+  
+  #Download the datasets of interest and replace the XXXX
+  items_url <- paste0(base.url,
+    "/api/dataValueSets?dataSet=XXXX","&orgUnit=",orgunit,"&&startDate=",startdate, "&endDate=", enddate,"&children=true" )
+  
+  items_01 <- content(GET(items_url), as = "parsed")
+  
+  items <- rbindlist(items_01$dataValues, fill = TRUE)
+  
+  items <- items %>%
+    mutate(category = "Data 1")
+  
+  View(items)
+
+  write_csv(items,
+            paste0(savedata, "/Data 1.csv"))
+  
+ 
+}
+
+dhistrial ("webpath", "username", "password", "country", "startdate","enddate", "savedata") 
